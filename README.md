@@ -508,6 +508,7 @@ This implementation adds support for the `-r` argument, which allows the script 
 
 
 ### Answer of Subtask 5:
+
 To implement the `-t` argument that sorts the results by the `time_modified` field (with the oldest files first), we will update the script to handle sorting by the `time_modified` field. Additionally, when both the `-r` and `-t` arguments are present, the results will be printed in reverse order (i.e., newest files first).
 
 ### Updated Python Code
@@ -1017,4 +1018,571 @@ The updated script now handles paths within the JSON structure, supporting both 
 
 
 ### Answer of Subtask 8:
+
+To implement the `-h` flag for human-readable sizes in the `pyls` script, we need to add a function that converts the sizes of files and directories from bytes into kilobytes (KB), megabytes (MB), gigabytes (GB), etc., depending on the size.
+
+### Updated Python Code
+
+Here's the updated Python code that includes the `-h` option for human-readable sizes:
+
+```python
+import json
+import sys
+from datetime import datetime
+
+def format_time(epoch_time):
+    """Convert epoch time to 'Mon Day HH:MM' format."""
+    dt = datetime.fromtimestamp(epoch_time)
+    return dt.strftime('%b %d %H:%M')
+
+def format_size(size, human_readable):
+    """Convert size in bytes to a human-readable format."""
+    if not human_readable:
+        return str(size)
+
+    # Convert size to human-readable format
+    for unit in ['B', 'K', 'M', 'G', 'T', 'P']:
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024.0
+    return f"{size:.1f}P"
+
+def find_path(data, path):
+    """Recursively find a subdirectory or file in the JSON structure."""
+    if not path:
+        return data  # Return the current level if path is empty
+    
+    for item in data.get('contents', []):
+        if item['name'] == path[0]:
+            if len(path) == 1:
+                return item  # Found the final directory or file
+            elif 'contents' in item:
+                return find_path(item, path[1:])  # Recurse into subdirectory
+            else:
+                return None  # Path is longer but item is not a directory
+
+    return None  # Item not found
+
+def pyls(directory, path=None, show_all=False, long_format=False, reverse_order=False, sort_by_time=False, filter_option=None, human_readable=False):
+    """Simulate 'ls' command with path handling."""
+    # Resolve path
+    target = directory
+    if path and path != '.':
+        path_parts = path.strip('/').split('/')
+        target = find_path(directory, path_parts)
+        if target is None:
+            print(f"error: cannot access '{path}': No such file or directory")
+            return
+    
+    # If the target is a file, print its details
+    if 'contents' not in target:
+        if long_format:
+            permissions = target.get('permissions', '')
+            size = target.get('size', 0)
+            formatted_size = format_size(size, human_readable)
+            time_modified = target.get('time_modified', 0)
+            formatted_time = format_time(time_modified)
+            name = target.get('name', '')
+            print(f"{permissions}\t{formatted_size}\t{formatted_time}\t./{path}")
+        else:
+            print(f"./{path}")
+        return
+
+    # Prepare the list of items in the target directory
+    contents = target.get('contents', [])
+    if show_all:
+        items = contents
+    else:
+        items = [item for item in contents if not item['name'].startswith('.')]
+
+    # Apply filter option
+    if filter_option == 'file':
+        items = [item for item in items if not item['permissions'].startswith('d')]
+    elif filter_option == 'dir':
+        items = [item for item in items if item['permissions'].startswith('d')]
+    elif filter_option is not None:
+        print(f"error: '{filter_option}' is not a valid filter criteria. Available filters are 'dir' and 'file'")
+        return
+
+    # Sort the list by time_modified if sort_by_time is True
+    if sort_by_time:
+        items.sort(key=lambda x: x['time_modified'])
+
+    # Reverse the list if reverse_order is True
+    if reverse_order:
+        items = items[::-1]
+
+    # Print the results
+    if long_format:
+        for item in items:
+            permissions = item.get('permissions', '')
+            size = item.get('size', 0)
+            formatted_size = format_size(size, human_readable)
+            time_modified = item.get('time_modified', 0)
+            formatted_time = format_time(time_modified)
+            name = item.get('name', '')
+            print(f"{permissions}\t{formatted_size}\t{formatted_time}\t{name}")
+    else:
+        print(' '.join(item['name'] for item in items))
+
+def main():
+    # Determine which flags are provided
+    show_all = '-A' in sys.argv
+    long_format = '-l' in sys.argv
+    reverse_order = '-r' in sys.argv
+    sort_by_time = '-t' in sys.argv
+    human_readable = '-h' in sys.argv
+
+    # Determine the filter option, if any
+    filter_option = None
+    for arg in sys.argv:
+        if arg.startswith('--filter='):
+            filter_option = arg.split('=')[1]
+            break
+
+    # Determine the path argument, if any
+    path = None
+    for arg in sys.argv[1:]:
+        if not arg.startswith('-') and not arg.startswith('--filter='):
+            path = arg
+            break
+
+    # Load the JSON file
+    with open('structure.json', 'r') as file:
+        directory_data = json.load(file)
+
+    # Simulate 'ls' command
+    pyls(directory_data, path, show_all, long_format, reverse_order, sort_by_time, filter_option, human_readable)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Explanation of the Changes
+
+1. **Human-Readable Size Conversion (`format_size` function)**:
+   - The `format_size` function takes a size in bytes and a flag (`human_readable`).
+   - If `human_readable` is `True`, the function converts the size to a human-readable format (e.g., KB, MB, GB).
+   - It uses a loop to divide the size by 1024 until it is small enough to display with the appropriate unit.
+
+2. **Modify `pyls` Function to Use Human-Readable Sizes**:
+   - The `pyls` function now includes a `human_readable` argument.
+   - The size is formatted using the `format_size` function before printing.
+
+3. **Handle the `-h` Flag**:
+   - The `main` function checks for the presence of the `-h` flag in the command-line arguments and sets the `human_readable` variable accordingly.
+
+### How to Use
+
+1. **Save the JSON Data**:
+   - Ensure that the JSON data is saved in a file named `structure.json` in the same directory as your Python script.
+
+2. **Save the Python Script**:
+   - Save the above Python script in a file named `pyls.py`.
+
+3. **Run the Script with the `-h` Flag**:
+   - To list the contents of the `parser` directory with human-readable sizes:
+     ```bash
+     python -m pyls -l -h parser
+     ```
+   - To display the details of a specific file with a human-readable size:
+     ```bash
+     python -m pyls -l -h parser/parser.go
+     ```
+
+### Example Outputs
+
+1. **Human-Readable Sizes in the `parser` Directory**:
+   ```bash
+   python -m pyls -l -h parser
+   ```
+   Output:
+   ```bash
+   -rw-r--r-- 533B Nov 14 16:03 go.mod
+   -rw-r--r-- 1.6K Nov 17 12:05 parser.go
+   -rw-r--r-- 1.4K Nov 17 12:51 parser_test.go
+   ```
+
+2. **Human-Readable Size for a Specific File**:
+   ```bash
+   python -m pyls -l -h parser/parser.go
+   ```
+   Output:
+   ```bash
+   -rw-r--r-- 1.6K Nov 17 12:05 ./parser/parser.go
+   ```
+
+### Summary
+
+The script is now enhanced with the `-h` flag to display file sizes in a human-readable format, such as KB, MB, or GB. This makes it easier for users to understand the size of files and directories without manually converting from bytes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Answer of Subtask 9:
+
+To implement the `--help` functionality, we need to add a handler that checks for the `--help` flag in the command-line arguments. When the flag is present, the program should print a helpful message describing the tool, its usage, and the available commands.
+
+Here's the updated Python code to implement the `--help` command:
+
+### Updated Python Code
+
+```python
+import json
+import sys
+from datetime import datetime
+
+def print_help():
+    """Print the help message."""
+    help_message = """
+pyls: Python-based 'ls' command-line utility.
+
+Usage:
+  python -m pyls [options] [path]
+
+Description:
+  This script simulates the 'ls' utility in Linux, allowing you to list the contents of a directory
+  described in a JSON file. You can specify various options to modify the output.
+
+Options:
+  -A                    Include all files, including those starting with '.'
+  -l                    Use a long listing format
+  -r                    Reverse the order of the output
+  -t                    Sort the output by time modified (oldest first)
+  -h                    Show human-readable sizes (e.g., 1K, 234M)
+  --filter=<option>     Filter the output based on the option. Valid options are:
+                          file - Show only files
+                          dir  - Show only directories
+  --help                Show this help message and exit
+
+Examples:
+  python -m pyls                   # List files and directories in the current directory
+  python -m pyls -A                # List all files, including hidden ones
+  python -m pyls -l                # List files with detailed information
+  python -m pyls -l -r -t          # List files in reverse order sorted by time modified
+  python -m pyls -l --filter=dir   # List only directories in long format
+  python -m pyls parser            # List the contents of the 'parser' subdirectory
+    """
+    print(help_message)
+
+def format_time(epoch_time):
+    """Convert epoch time to 'Mon Day HH:MM' format."""
+    dt = datetime.fromtimestamp(epoch_time)
+    return dt.strftime('%b %d %H:%M')
+
+def format_size(size, human_readable):
+    """Convert size in bytes to a human-readable format."""
+    if not human_readable:
+        return str(size)
+
+    # Convert size to human-readable format
+    for unit in ['B', 'K', 'M', 'G', 'T', 'P']:
+        if size < 1024:
+            return f"{size:.1f}{unit}"
+        size /= 1024.0
+    return f"{size:.1f}P"
+
+def find_path(data, path):
+    """Recursively find a subdirectory or file in the JSON structure."""
+    if not path:
+        return data  # Return the current level if path is empty
+    
+    for item in data.get('contents', []):
+        if item['name'] == path[0]:
+            if len(path) == 1:
+                return item  # Found the final directory or file
+            elif 'contents' in item:
+                return find_path(item, path[1:])  # Recurse into subdirectory
+            else:
+                return None  # Path is longer but item is not a directory
+
+    return None  # Item not found
+
+def pyls(directory, path=None, show_all=False, long_format=False, reverse_order=False, sort_by_time=False, filter_option=None, human_readable=False):
+    """Simulate 'ls' command with path handling."""
+    # Resolve path
+    target = directory
+    if path and path != '.':
+        path_parts = path.strip('/').split('/')
+        target = find_path(directory, path_parts)
+        if target is None:
+            print(f"error: cannot access '{path}': No such file or directory")
+            return
+    
+    # If the target is a file, print its details
+    if 'contents' not in target:
+        if long_format:
+            permissions = target.get('permissions', '')
+            size = target.get('size', 0)
+            formatted_size = format_size(size, human_readable)
+            time_modified = target.get('time_modified', 0)
+            formatted_time = format_time(time_modified)
+            name = target.get('name', '')
+            print(f"{permissions}\t{formatted_size}\t{formatted_time}\t./{path}")
+        else:
+            print(f"./{path}")
+        return
+
+    # Prepare the list of items in the target directory
+    contents = target.get('contents', [])
+    if show_all:
+        items = contents
+    else:
+        items = [item for item in contents if not item['name'].startswith('.')]
+
+    # Apply filter option
+    if filter_option == 'file':
+        items = [item for item in items if not item['permissions'].startswith('d')]
+    elif filter_option == 'dir':
+        items = [item for item in items if item['permissions'].startswith('d')]
+    elif filter_option is not None:
+        print(f"error: '{filter_option}' is not a valid filter criteria. Available filters are 'dir' and 'file'")
+        return
+
+    # Sort the list by time_modified if sort_by_time is True
+    if sort_by_time:
+        items.sort(key=lambda x: x['time_modified'])
+
+    # Reverse the list if reverse_order is True
+    if reverse_order:
+        items = items[::-1]
+
+    # Print the results
+    if long_format:
+        for item in items:
+            permissions = item.get('permissions', '')
+            size = item.get('size', 0)
+            formatted_size = format_size(size, human_readable)
+            time_modified = item.get('time_modified', 0)
+            formatted_time = format_time(time_modified)
+            name = item.get('name', '')
+            print(f"{permissions}\t{formatted_size}\t{formatted_time}\t{name}")
+    else:
+        print(' '.join(item['name'] for item in items))
+
+def main():
+    # Handle the --help flag
+    if '--help' in sys.argv:
+        print_help()
+        return
+
+    # Determine which flags are provided
+    show_all = '-A' in sys.argv
+    long_format = '-l' in sys.argv
+    reverse_order = '-r' in sys.argv
+    sort_by_time = '-t' in sys.argv
+    human_readable = '-h' in sys.argv
+
+    # Determine the filter option, if any
+    filter_option = None
+    for arg in sys.argv:
+        if arg.startswith('--filter='):
+            filter_option = arg.split('=')[1]
+            break
+
+    # Determine the path argument, if any
+    path = None
+    for arg in sys.argv[1:]:
+        if not arg.startswith('-') and not arg.startswith('--filter='):
+            path = arg
+            break
+
+    # Load the JSON file
+    with open('structure.json', 'r') as file:
+        directory_data = json.load(file)
+
+    # Simulate 'ls' command
+    pyls(directory_data, path, show_all, long_format, reverse_order, sort_by_time, filter_option, human_readable)
+
+if __name__ == "__main__":
+    main()
+```
+
+### Explanation of Changes
+
+1. **`print_help` Function**:
+   - This function defines a helpful message that describes the usage of the `pyls` script, its options, and examples. 
+   - It includes all the available options (`-A`, `-l`, `-r`, `-t`, `-h`, and `--filter=<option>`).
+
+2. **Handle `--help` in `main`**:
+   - Before processing any other arguments, the `main` function checks if the `--help` flag is present in the command-line arguments.
+   - If it is, the script prints the help message and exits immediately, without executing further logic.
+
+### How to Use
+
+To display the help message for the `pyls` utility, run:
+
+```bash
+python -m pyls --help
+```
+
+### Example Output
+
+When you run the script with the `--help` flag, you should see the following output:
+
+```
+pyls: Python-based 'ls' command-line utility.
+
+Usage:
+  python -m pyls [options] [path]
+
+Description:
+  This script simulates the 'ls' utility in Linux, allowing you to list the contents of a directory
+  described in a JSON file. You can specify various options to modify the output.
+
+Options:
+  -A                    Include all files, including those starting with '.'
+  -l                    Use a long listing format
+  -r                    Reverse the order of the output
+  -t                    Sort the output by time modified (oldest first)
+  -h                    Show human-readable sizes (e.g., 1K, 234M)
+  --filter=<option>     Filter the output based on the option. Valid options are:
+                          file - Show only files
+                          dir  - Show only directories
+  --help                Show this help message and exit
+
+Examples:
+  python -m pyls                   # List files and directories in the current directory
+  python -m pyls -A                # List all files, including hidden ones
+  python -m pyls -l                # List files with detailed information
+  python -m pyls -l -r -t          # List files in reverse order sorted by time modified
+  python -m pyls -l --filter=dir   # List only directories in long format
+  python -m pyls parser            # List the contents of the 'parser' subdirectory
+```
+
+### Summary
+
+With this update, the `pyls` script provides a comprehensive help message when
+
+
+
+
+
+
+
+
+
+
+### Answer of Subtask 10:
+
+To create a `pyproject.toml` file that configures the installation of Python project with `pip`, we need to define the necessary metadata for package and specify the entry point that adds the `pyls` command to the system. This will allow the script to be executed directly from the command line using `pyls`.
+
+### Step-by-Step Guide
+
+1. **Create the `pyproject.toml` File**:
+   This file is used by `pip` and other Python tools to build and install the package. Here is what the `pyproject.toml` file should look like:
+
+```toml
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyls"
+version = "1.0.0"
+description = "A Python-based implementation of the ls command"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" }
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+[project.scripts]
+pyls = "pyls:main"
+```
+
+2. **Organize Project Structure**:
+
+   To use this configuration, we need to organize your project directory correctly. Here’s an example of what project structure should look like:
+
+```
+your_project_directory/
+├── pyls.py                 # Your main script containing the 'main()' function
+├── pyproject.toml          # Configuration file
+├── README.md               # Optional, readme file
+└── LICENSE                 # License file
+```
+
+3. **Explanation of `pyproject.toml` Configuration**:
+
+   - **`[build-system]`**:
+     - Specifies the build requirements and the build backend (`setuptools` in this case).
+   - **`[project]`**:
+     - **`name`**: The name of the project. When installed, this is also the name used for the command.
+     - **`version`**: The current version of the project.
+     - **`description`**: A brief description of your project.
+     - **`authors`**: Name and email as the project author.
+     - **`license`**: Indicates the license file.
+     - **`requires-python`**: Specifies the minimum Python version required.
+     - **`classifiers`**: Metadata about the project (e.g., Python version compatibility, license type).
+   - **`[project.scripts]`**:
+     - This specifies the entry point for your script. It maps the `pyls` command to the `main` function in the `pyls.py` file.
+
+4. **Install the Project Locally**:
+
+   Once your `pyproject.toml` is ready, we can install project locally using `pip`. Open a terminal in project directory and run:
+
+   ```bash
+   pip install .
+   ```
+
+   This will install the project and make the `pyls` command available system-wide (depending on your Python environment configuration).
+
+5. **Using the `pyls` Command**:
+
+   After installation, you can use the `pyls` command directly from your terminal:
+
+   ```bash
+   pyls
+   ```
+
+   This should output:
+
+   ```
+   LICENSE README.md ast go.mod lexer main.go parser token
+   ```
+
+6. **Add Project Directory to the System PATH (if needed)**:
+
+   If the `pyls` command is not recognized, you may need to add the installation path to your system’s PATH environment variable. Typically, `pip` installs packages in a directory that is already in your PATH, but if not, you can find the installation location with:
+
+   ```bash
+   python -m site --user-base
+   ```
+
+   Then, add the corresponding `bin` or `Scripts` directory to your PATH.
+
+### Additional Steps for Distribution
+
+If you plan to distribute your project, consider creating a source distribution and a wheel file by running:
+
+```bash
+python -m build
+```
+
+This will generate `.tar.gz` and `.whl` files in a `dist/` directory, which can be uploaded to PyPI or shared with others. Make sure `build` is installed via:
+
+```bash
+pip install build
+```
+
+### Summary
+
+By creating a `pyproject.toml` and configuring it with `setuptools`, enable users to install `pyls` script via `pip` and use it directly from the command line. This makes your Python script much easier to share and distribute.
+
 
