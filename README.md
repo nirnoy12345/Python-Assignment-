@@ -1,4 +1,3 @@
-# Python-Assignment-
 To solve this problem, we will write a Python program that reads a JSON file representing a nested directory structure and prints it in a format similar to the ls (Linux utility) command output. The program will recursively traverse the nested directory structure and print the contents with proper indentation.
 Step-by-Step Approach
 1.	Read the JSON File: We will first read the JSON file which contains the directory structure.
@@ -87,7 +86,7 @@ By executing the script, you will see a clear representation of the nested direc
 
 
 
-Answer of Subtask 1:
+### Answer of Subtask 1:
 
 To implement the ‘pyls’ program, we need to create a Python script that mimics the behavior of the ls command in Linux. The script will parse a given JSON file representing the directory structure and print the contents of the top-level directory while ignoring hidden files (those starting with a dot ‘.’).
 Step-by-Step Approach
@@ -176,7 +175,8 @@ By running ‘python -m pyls’, you will achieve a result similar to the Linux 
 
 
 
-Answer of Subtask 2:
+
+### Answer of Subtask 2:
 
 To implement the ‘-A’ argument for our pyls script, we will modify the script to handle command-line arguments. When the ‘-A’ flag is provided, the script will include all files and directories, including those that start with a dot (‘.’).
 Updated Python Code
@@ -265,7 +265,8 @@ This implementation allows the script to include all files and directories when 
 
 
 
-Answer of Subtask 3:
+### Answer of Subtask 3:
+
 To implement the `-l` argument in the `pyls` script, we need to display the details of each file and directory in a vertical format, similar to the `ls -l` command in Linux. This format includes the permissions, size, modification date, time, and the file or directory name.
 
 ### Updated Python Code
@@ -385,7 +386,7 @@ This implementation allows the script to print detailed information about each f
 
 
 
-Answer of Subtask 4:
+### Answer of Subtask 4:
 
 To implement the `-r` argument, which prints the results in reverse order, we will modify the script to check for the presence of the `-r` flag. When this flag is present, the script will reverse the order of the list of files and directories before printing them.
 
@@ -506,7 +507,7 @@ This implementation adds support for the `-r` argument, which allows the script 
 
 
 
-Answer of Subtask 5:
+### Answer of Subtask 5:
 To implement the `-t` argument that sorts the results by the `time_modified` field (with the oldest files first), we will update the script to handle sorting by the `time_modified` field. Additionally, when both the `-r` and `-t` arguments are present, the results will be printed in reverse order (i.e., newest files first).
 
 ### Updated Python Code
@@ -627,7 +628,8 @@ if __name__ == "__main__":
 
 This implementation adds support for the `-t` argument, which sorts the output by modification time. When used in combination with the `-r` argument, it reverses the order to print the newest files first, simulating the behavior of the `ls -l -r -t` command in Linux.
 
-Answer of Subtask 6:
+### Answer of Subtask 6:
+
 To implement the `--filter` option, which allows filtering of the output based on whether items are files or directories, we will update the script to handle an additional argument. The `--filter` option will accept two values: `file` to display only files, and `dir` to display only directories. If any other value is provided, the script will print an error message.
 
 ### Updated Python Code
@@ -803,7 +805,8 @@ This implementation adds support for the `--filter` argument to filter the outpu
 
 
 
-Answer of Subtask 7:
+### Answer of Subtask 7:
+
 To handle paths and navigate the directory structure represented in the JSON, we need to implement path handling logic in the `pyls` script. This involves checking whether the given path exists, determining if it is a file or directory, and listing the contents accordingly. The program should also support relative paths, such as `.` (current directory) or `./subdir`.
 
 ### Updated Python Code
@@ -1003,3 +1006,15 @@ if __name__ == "__main__":
 ### Summary
 
 The updated script now handles paths within the JSON structure, supporting both files and directories. It can navigate through the structure based on the given path, handle relative paths, and provide appropriate error messages for non-existent paths. This implementation makes the `pyls` command fully functional and flexible, closely mimicking the behavior of the Linux `ls` utility.
+
+
+
+
+
+
+
+
+
+
+### Answer of Subtask 8:
+
